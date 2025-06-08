@@ -1,5 +1,5 @@
-// FIXED: src/components/canvas/AutomationFlow.tsx
-// This resolves the "Click the line → Automation Rule Editor opens" issue
+// src/components/canvas/AutomationFlow.tsx
+// COMPLETE FIXED VERSION
 
 import React, { useEffect, useRef } from 'react';
 import { BlockConnection, CanvasBlock } from '../../types/canvas';
@@ -173,7 +173,7 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       glowPath.setAttribute('class', 'automation-path automation-glow');
       glowPath.setAttribute('stroke-linecap', 'round');
       glowPath.style.filter = 'blur(3px)';
-      glowPath.style.pointerEvents = 'none'; // Glow shouldn't interfere
+      glowPath.style.pointerEvents = 'none';
       
       svgRef.current!.appendChild(glowPath);
       
@@ -207,11 +207,11 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
         path.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))';
       });
 
-      // CRITICAL FIX: Add click handler with event handling
+      // CRITICAL FIX: Add click handler
       path.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Connection clicked:', connection.id); // Debug log
+        console.log('🎯 Connection path clicked:', connection.id);
         if (onConnectionClick) {
           onConnectionClick(connection.id);
         }
@@ -223,18 +223,18 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       const interactionPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       interactionPath.setAttribute('d', pathData);
       interactionPath.setAttribute('stroke', 'transparent');
-      interactionPath.setAttribute('stroke-width', '20'); // Wide click area
+      interactionPath.setAttribute('stroke-width', '30');
       interactionPath.setAttribute('fill', 'none');
       interactionPath.setAttribute('class', 'automation-interaction');
       
-      // CRITICAL FIX: Enable pointer events on interaction area
-      interactionPath.style.cursor = 'pointer';
+      // CRITICAL FIX: Enable pointer events
       interactionPath.style.pointerEvents = 'auto';
+      interactionPath.style.cursor = 'pointer';
       
       interactionPath.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Interaction area clicked:', connection.id); // Debug log
+        console.log('🎯 Connection interaction area clicked:', connection.id);
         if (onConnectionClick) {
           onConnectionClick(connection.id);
         }
@@ -242,7 +242,7 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
 
       svgRef.current!.appendChild(interactionPath);
       
-      // Add enhanced label if automation rule exists
+      // Add labels if automation rule exists
       if (connection.automationRule) {
         const pathElement = path;
         const pathLength = pathElement.getTotalLength();
@@ -264,7 +264,6 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
         labelBg.setAttribute('stroke', style.stroke);
         labelBg.setAttribute('stroke-width', '1');
         labelBg.setAttribute('class', 'automation-label-bg');
-        labelBg.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
         labelBg.style.pointerEvents = 'auto';
         labelBg.style.cursor = 'pointer';
         
@@ -281,12 +280,12 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
         labelText.style.pointerEvents = 'auto';
         labelText.style.cursor = 'pointer';
         
-        // Add click handlers to label elements
+        // Add click handlers to labels
         [labelBg, labelText].forEach(element => {
           element.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Label clicked:', connection.id); // Debug log
+            console.log('🎯 Connection label clicked:', connection.id);
             if (onConnectionClick) {
               onConnectionClick(connection.id);
             }
@@ -332,8 +331,7 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       style={{ 
         width: '100%', 
         height: '100%',
-        // CRITICAL FIX: Set pointer events to none on container, 
-        // but enable them on individual elements
+        // CRITICAL FIX: Disable on container, enable on children
         pointerEvents: 'none'
       }}
     >

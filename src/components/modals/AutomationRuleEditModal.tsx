@@ -1,430 +1,353 @@
 // src/components/modals/AutomationRuleEditModal.tsx
+// NEW FILE - Create this file
 
 import React, { useState, useEffect } from 'react';
-import { AutomationRule, BlockConnection, CanvasBlock } from '../../types/canvas';
-import { X, Save, Trash2, Play, Pause, Zap, Clock, AlertCircle, Settings } from 'lucide-react';
+import { AutomationRule } from '../../types/canvas';
+import { X, Save, AlertCircle, Zap, Calendar, Settings } from 'lucide-react';
 
 interface AutomationRuleEditModalProps {
-  automationRule: AutomationRule | null;
-  connection: BlockConnection | null;
-  fromBlock: CanvasBlock | null;
-  toBlock: CanvasBlock | null;
+  ruleId: string | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (ruleId: string, updatedRule: Partial<AutomationRule>) => void;
-  onDelete: (ruleId: string) => void;
+  onSave: (ruleId: string, ruleData: any) => void;
 }
 
-export const AutomationRuleEditModal: React.FC<AutomationRuleEditModalProps> = ({
-  automationRule,
-  connection,
-  fromBlock,
-  toBlock,
-  isOpen,
-  onClose,
-  onSave,
-  onDelete
+export const AutomationRuleEditModal: React.FC<AutomationRuleEditModalProps> = ({ 
+  ruleId, 
+  isOpen, 
+  onClose, 
+  onSave 
 }) => {
-  const [editedRule, setEditedRule] = useState<Partial<AutomationRule>>({});
-  const [activeTab, setActiveTab] = useState<'basic' | 'conditions' | 'schedule'>('basic');
+  const [ruleData, setRuleData] = useState<any>({});
 
   useEffect(() => {
-    if (automationRule) {
-      setEditedRule({
-        name: automationRule.name,
-        type: automationRule.type,
-        trigger: automationRule.trigger,
-        action: automationRule.action,
-        active: automationRule.active,
-        lastRun: automationRule.lastRun,
-        nextCheck: automationRule.nextCheck
-      });
+    if (ruleId && isOpen) {
+      console.log('🔧 Loading rule data for:', ruleId);
+      
+      // Default rules data
+      const defaultRules = {
+        'auto-replenishment': {
+          id: 'auto-replenishment',
+          name: 'Auto-Replenishment Rule',
+          type: 'replenishment',
+          fromBlock: 'reserve-asset',
+          toBlock: 'operating-asset',
+          trigger: {
+            type: 'balance_threshold',
+            threshold: 50000,
+            comparison: 'less_than'
+          },
+          action: {
+            type: 'transfer',
+            amount: 'auto',
+            targetBalance: 250000
+          },
+          active: true,
+          schedule: 'real-time',
+          description: 'Automatically replenish operating account when balance falls below threshold'
+        },
+        'monthly-payment': {
+          id: 'monthly-payment',
+          name: 'Monthly Payment Rule',
+          type: 'payment',
+          fromBlock: 'operating-asset',
+          toBlock: 'credit-line',
+          trigger: {
+            type: 'schedule',
+            frequency: 'monthly',
+            dayOfMonth: 1
+          },
+          action: {
+            type: 'payment',
+            amount: 'interest_only',
+            paymentType: 'automatic'
+          },
+          active: true,
+          schedule: 'monthly',
+          description: 'Automatically make monthly interest payments on credit line'
+        },
+        'collateral-monitoring': {
+          id: 'collateral-monitoring',
+          name: 'Collateral Monitoring Rule',
+          type: 'threshold',
+          fromBlock: 'credit-line',
+          toBlock: 'collateral-asset',
+          trigger: {
+            type: 'ltv_threshold',
+            threshold: 80
+          },
+          action: {
+            type: 'alert',
+            alertType: 'margin_call'
+          },
+          active: true,
+          schedule: 'real-time',
+          description: 'Monitor collateral LTV and trigger alerts when thresholds are exceeded'
+        }
+      };
+      
+      // Handle fallback for unknown rules
+      let selectedRule = defaultRules[ruleId as keyof typeof defaultRules];
+      if (!selectedRule) {
+        selectedRule = {
+          id: ruleId,
+          name: 'New Automation Rule',
+          type: 'custom',
+          fromBlock: 'unknown',
+          toBlock: 'unknown',
+          active: false,
+          description: 'Custom automation rule - configure as needed'
+        };
+      }
+      
+      console.log('✅ Loaded rule data:', selectedRule);
+      setRuleData(selectedRule);
     }
-  }, [automationRule]);
+  }, [ruleId, isOpen]);
+
+  if (!isOpen || !ruleId) return null;
 
   const handleSave = () => {
-    if (automationRule) {
-      onSave(automationRule.id, editedRule);
-      onClose();
+    console.log('💾 Saving automation rule:', ruleData);
+    if (ruleId && ruleData) {
+      onSave(ruleId, ruleData);
     }
+    onClose();
   };
 
-  const handleDelete = () => {
-    if (automationRule && window.confirm(`Are you sure you want to delete "${automationRule.name}"? This will remove the automation rule and its connection.`)) {
-      onDelete(automationRule.id);
-      onClose();
-    }
+  const updateRuleData = (key: string, value: any) => {
+    setRuleData((prev: any) => ({ ...prev, [key]: value }));
   };
 
-  const updateRule = (field: keyof AutomationRule, value: any) => {
-    setEditedRule(prev => ({ ...prev, [field]: value }));
+  const updateNestedData = (section: string, key: string, value: any) => {
+    setRuleData((prev: any) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [key]: value
+      }
+    }));
   };
 
-  const getAutomationTypeIcon = (type: string) => {
-    switch (type) {
+  const getRuleIcon = () => {
+    switch (ruleData.type) {
       case 'replenishment':
-        return '💰';
+        return Zap;
       case 'payment':
-        return '💳';
+        return Calendar;
       case 'threshold':
-        return '⚠️';
+        return AlertCircle;
       default:
-        return '⚡';
+        return Settings;
     }
   };
 
-  const getAutomationTypeColor = (type: string) => {
-    switch (type) {
-      case 'replenishment':
-        return 'text-green-600 bg-green-100';
-      case 'payment':
-        return 'text-blue-600 bg-blue-100';
-      case 'threshold':
-        return 'text-yellow-600 bg-yellow-100';
-      default:
-        return 'text-purple-600 bg-purple-100';
-    }
-  };
-
-  const getActionTemplates = (type: string) => {
-    switch (type) {
-      case 'replenishment':
-        return [
-          'Transfer $50,000 from Reserve Account',
-          'Transfer $25,000 from Reserve Account',
-          'Transfer $100,000 from Reserve Account',
-          'Transfer 80% of shortfall from Reserve Account'
-        ];
-      case 'payment':
-        return [
-          'Pay minimum amount due',
-          'Pay interest only',
-          'Pay full balance',
-          'Pay fixed amount of $5,000'
-        ];
-      case 'threshold':
-        return [
-          'Send alert notification',
-          'Pause other automation rules',
-          'Execute rebalancing strategy',
-          'Generate report for review'
-        ];
-      default:
-        return [
-          'Execute custom logic',
-          'Send notification',
-          'Create task for review'
-        ];
-    }
-  };
-
-  const getTriggerTemplates = (type: string) => {
-    switch (type) {
-      case 'replenishment':
-        return [
-          'Balance below $50,000',
-          'Balance below $25,000',
-          'Balance below $100,000',
-          'Balance below 20% of target'
-        ];
-      case 'payment':
-        return [
-          'Monthly payment due',
-          'Weekly payment due',
-          'Interest payment due',
-          '5 days before payment due'
-        ];
-      case 'threshold':
-        return [
-          'LTV exceeds 80%',
-          'Utilization exceeds 90%',
-          'Balance variance > 10%',
-          'Risk score exceeds limit'
-        ];
-      default:
-        return [
-          'Custom condition met',
-          'Time-based trigger',
-          'Event-based trigger'
-        ];
-    }
-  };
-
-  if (!isOpen || !automationRule) return null;
+  const IconComponent = getRuleIcon();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-charcoal-grey bg-opacity-50"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="relative bg-cream rounded-lg shadow-deep w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-light-medium-grey">
           <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-lg ${getAutomationTypeColor(editedRule.type || 'custom')}`}>
-              <span className="text-lg">{getAutomationTypeIcon(editedRule.type || 'custom')}</span>
+            <div className="bg-light-blue bg-opacity-40 p-2 rounded-lg">
+              <IconComponent className="w-5 h-5 text-deep-navy" />
             </div>
             <div>
-              <h2 className="font-playfair text-xl font-bold text-gray-900">
+              <h2 className="font-playfair text-h4 text-charcoal-grey">
                 Edit Automation Rule
               </h2>
-              <p className="font-montserrat text-sm text-gray-500">
-                {fromBlock?.name} → {toBlock?.name}
+              <p className="font-montserrat text-caption text-medium-grey">
+                {ruleData.name || 'New Rule'}
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            {/* Quick toggle active/inactive */}
-            <button
-              onClick={() => updateRule('active', !editedRule.active)}
-              className={`p-2 rounded-lg transition-colors ${
-                editedRule.active 
-                  ? 'bg-green-100 text-green-600 hover:bg-green-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              title={editedRule.active ? 'Pause Rule' : 'Activate Rule'}
-            >
-              {editedRule.active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            {['basic', 'conditions', 'schedule'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`
-                  py-4 px-1 border-b-2 font-montserrat text-sm font-medium transition-colors
-                  ${activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
-                `}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </nav>
+          <button
+            onClick={onClose}
+            className="text-medium-grey hover:text-charcoal-grey transition-colors p-1 rounded-lg hover:bg-light-grey hover:bg-opacity-50"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-96 overflow-y-auto">
-          {activeTab === 'basic' && (
-            <div className="space-y-6">
-              {/* Rule Name */}
-              <div>
-                <label className="block font-montserrat text-sm font-medium text-gray-700 mb-2">
-                  Rule Name
-                </label>
-                <input
-                  type="text"
-                  value={editedRule.name || ''}
-                  onChange={(e) => updateRule('name', e.target.value)}
-                  placeholder="Enter automation rule name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-montserrat text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
+          {/* Rule Overview */}
+          <div className="flex items-start space-x-3 mb-6 p-4 bg-light-blue bg-opacity-20 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-deep-navy mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-montserrat text-subtitle font-bold text-deep-navy">
+                Automation Rule Configuration
+              </p>
+              <p className="font-montserrat text-caption text-charcoal-grey">
+                {ruleData.description || `Configure how ${ruleData.fromBlock?.replace('-', ' ')} connects to ${ruleData.toBlock?.replace('-', ' ')}.`}
+              </p>
+            </div>
+          </div>
 
-              {/* Rule Type */}
+          {/* Basic Settings */}
+          <div className="space-y-6">
+            <div>
+              <label className="block font-montserrat text-subtitle font-bold text-charcoal-grey mb-2">
+                Rule Name
+              </label>
+              <input
+                type="text"
+                value={ruleData.name || ''}
+                onChange={(e) => updateRuleData('name', e.target.value)}
+                className="w-full px-3 py-2 border border-light-medium-grey rounded-lg focus:ring-2 focus:ring-deep-navy focus:border-transparent font-montserrat text-subtitle transition-all duration-200"
+                placeholder="Enter rule name..."
+              />
+            </div>
+
+            <div>
+              <label className="block font-montserrat text-subtitle font-bold text-charcoal-grey mb-2">
+                Rule Type
+              </label>
+              <select
+                value={ruleData.type || 'custom'}
+                onChange={(e) => updateRuleData('type', e.target.value)}
+                className="w-full px-3 py-2 border border-light-medium-grey rounded-lg focus:ring-2 focus:ring-deep-navy focus:border-transparent font-montserrat text-subtitle transition-all duration-200"
+              >
+                <option value="replenishment">Replenishment</option>
+                <option value="payment">Payment</option>
+                <option value="threshold">Threshold</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-montserrat text-subtitle font-bold text-charcoal-grey mb-2">
+                Rule Status
+              </label>
+              <div className="flex items-center space-x-3">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={ruleData.active || false}
+                    onChange={(e) => updateRuleData('active', e.target.checked)}
+                    className="rounded border-light-medium-grey text-deep-navy focus:ring-deep-navy"
+                  />
+                  <span className="font-montserrat text-caption text-charcoal-grey">
+                    Active
+                  </span>
+                </label>
+                <div className={`w-2 h-2 rounded-full ${ruleData.active ? 'bg-deep-olive animate-pulse' : 'bg-medium-grey'}`}></div>
+                <span className={`font-montserrat text-caption font-bold ${ruleData.active ? 'text-deep-olive' : 'text-medium-grey'}`}>
+                  {ruleData.active ? 'ENABLED' : 'DISABLED'}
+                </span>
+              </div>
+            </div>
+
+            {/* Trigger Configuration */}
+            {ruleData.trigger && (
               <div>
-                <label className="block font-montserrat text-sm font-medium text-gray-700 mb-2">
-                  Automation Type
+                <label className="block font-montserrat text-subtitle font-bold text-charcoal-grey mb-2">
+                  Trigger Configuration
+                </label>
+                <div className="space-y-3">
+                  <select
+                    value={ruleData.trigger?.type || 'manual'}
+                    onChange={(e) => updateNestedData('trigger', 'type', e.target.value)}
+                    className="w-full px-3 py-2 border border-light-medium-grey rounded-lg focus:ring-2 focus:ring-deep-navy focus:border-transparent font-montserrat text-caption"
+                  >
+                    <option value="balance_threshold">Balance Threshold</option>
+                    <option value="schedule">Schedule</option>
+                    <option value="ltv_threshold">LTV Threshold</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                  
+                  {ruleData.trigger?.type === 'balance_threshold' && (
+                    <input
+                      type="number"
+                      value={ruleData.trigger?.threshold || ''}
+                      onChange={(e) => updateNestedData('trigger', 'threshold', Number(e.target.value))}
+                      placeholder="Threshold amount"
+                      className="w-full px-3 py-2 border border-light-medium-grey rounded-lg focus:ring-2 focus:ring-deep-navy focus:border-transparent font-montserrat text-caption"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action Configuration */}
+            {ruleData.action && (
+              <div>
+                <label className="block font-montserrat text-subtitle font-bold text-charcoal-grey mb-2">
+                  Action Configuration
                 </label>
                 <select
-                  value={editedRule.type || 'custom'}
-                  onChange={(e) => updateRule('type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-montserrat text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={ruleData.action?.type || 'custom'}
+                  onChange={(e) => updateNestedData('action', 'type', e.target.value)}
+                  className="w-full px-3 py-2 border border-light-medium-grey rounded-lg focus:ring-2 focus:ring-deep-navy focus:border-transparent font-montserrat text-caption"
                 >
-                  <option value="replenishment">Replenishment</option>
+                  <option value="transfer">Transfer</option>
                   <option value="payment">Payment</option>
-                  <option value="threshold">Threshold</option>
+                  <option value="alert">Alert</option>
                   <option value="custom">Custom</option>
                 </select>
               </div>
+            )}
 
-              {/* Status Display */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Clock className="w-4 h-4 text-gray-600" />
-                    <span className="font-montserrat text-sm font-medium text-gray-700">Last Run</span>
+            {/* Connection Info */}
+            <div className="bg-light-grey bg-opacity-50 p-4 rounded-lg">
+              <h4 className="font-montserrat text-subtitle font-bold text-charcoal-grey mb-3">
+                Block Connection
+              </h4>
+              <div className="flex items-center justify-between">
+                <div className="text-center">
+                  <div className="bg-light-blue bg-opacity-40 px-3 py-2 rounded-lg mb-2">
+                    <span className="font-montserrat text-caption font-bold text-deep-navy">
+                      FROM
+                    </span>
                   </div>
-                  <p className="font-montserrat text-sm text-gray-600">
-                    {editedRule.lastRun ? new Date(editedRule.lastRun).toLocaleString() : 'Never'}
+                  <p className="font-montserrat text-caption text-charcoal-grey capitalize">
+                    {ruleData.fromBlock?.replace('-', ' ') || 'Source Block'}
                   </p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <AlertCircle className="w-4 h-4 text-gray-600" />
-                    <span className="font-montserrat text-sm font-medium text-gray-700">Status</span>
+                
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-0.5 bg-charcoal-grey"></div>
+                  <div className="w-0 h-0 border-l-4 border-l-charcoal-grey border-t-2 border-b-2 border-t-transparent border-b-transparent"></div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="bg-dusty-pink bg-opacity-40 px-3 py-2 rounded-lg mb-2">
+                    <span className="font-montserrat text-caption font-bold text-deep-navy">
+                      TO
+                    </span>
                   </div>
-                  <span className={`
-                    px-2 py-1 rounded-full font-montserrat text-xs font-medium
-                    ${editedRule.active 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                    }
-                  `}>
-                    {editedRule.active ? 'Active' : 'Inactive'}
-                  </span>
+                  <p className="font-montserrat text-caption text-charcoal-grey capitalize">
+                    {ruleData.toBlock?.replace('-', ' ') || 'Target Block'}
+                  </p>
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab === 'conditions' && (
-            <div className="space-y-6">
-              {/* Trigger Condition */}
-              <div>
-                <label className="block font-montserrat text-sm font-medium text-gray-700 mb-2">
-                  Trigger Condition
-                </label>
-                <input
-                  type="text"
-                  value={editedRule.trigger || ''}
-                  onChange={(e) => updateRule('trigger', e.target.value)}
-                  placeholder="When should this automation trigger?"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-montserrat text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                
-                {/* Trigger Templates */}
-                <div className="mt-2">
-                  <p className="font-montserrat text-xs text-gray-500 mb-2">Common triggers:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {getTriggerTemplates(editedRule.type || 'custom').map((template, index) => (
-                      <button
-                        key={index}
-                        onClick={() => updateRule('trigger', template)}
-                        className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded font-montserrat hover:bg-blue-100 transition-colors"
-                      >
-                        {template}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action */}
-              <div>
-                <label className="block font-montserrat text-sm font-medium text-gray-700 mb-2">
-                  Action to Take
-                </label>
-                <input
-                  type="text"
-                  value={editedRule.action || ''}
-                  onChange={(e) => updateRule('action', e.target.value)}
-                  placeholder="What action should be performed?"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-montserrat text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                
-                {/* Action Templates */}
-                <div className="mt-2">
-                  <p className="font-montserrat text-xs text-gray-500 mb-2">Common actions:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {getActionTemplates(editedRule.type || 'custom').map((template, index) => (
-                      <button
-                        key={index}
-                        onClick={() => updateRule('action', template)}
-                        className="px-2 py-1 bg-green-50 text-green-700 text-xs rounded font-montserrat hover:bg-green-100 transition-colors"
-                      >
-                        {template}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Connection Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Zap className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-montserrat text-sm font-semibold text-blue-900">
-                    Connection Details
-                  </h4>
-                </div>
-                <p className="font-montserrat text-xs text-blue-800">
-                  This automation rule controls the flow between <strong>{fromBlock?.name}</strong> and <strong>{toBlock?.name}</strong>.
-                  The trigger condition monitors {fromBlock?.name}, and when met, the action affects {toBlock?.name}.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'schedule' && (
-            <div className="space-y-6">
-              {/* Schedule Settings */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Clock className="w-4 h-4 text-yellow-600" />
-                  <h4 className="font-montserrat text-sm font-semibold text-yellow-900">
-                    Schedule Configuration
-                  </h4>
-                </div>
-                <p className="font-montserrat text-xs text-yellow-800 mb-4">
-                  Advanced scheduling options will be available in a future update. Currently, automation rules run based on real-time triggers.
-                </p>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block font-montserrat text-sm font-medium text-gray-700 mb-2">
-                      Next Check
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={editedRule.nextCheck ? new Date(editedRule.nextCheck).toISOString().slice(0, 16) : ''}
-                      onChange={(e) => updateRule('nextCheck', e.target.value ? new Date(e.target.value).toISOString() : '')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg font-montserrat text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={editedRule.active || false}
-                      onChange={(e) => updateRule('active', e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label className="font-montserrat text-sm text-gray-700">
-                      Enable automatic execution
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex justify-end space-x-3 p-6 border-t border-light-medium-grey">
           <button
-            onClick={handleDelete}
-            className="flex items-center space-x-2 px-4 py-2 text-red-700 bg-red-100 border border-red-300 rounded-lg font-montserrat text-sm hover:bg-red-200 transition-colors"
+            onClick={onClose}
+            className="px-4 py-2 border border-light-medium-grey text-charcoal-grey rounded-lg font-montserrat text-subtitle font-bold hover:bg-light-grey transition-colors"
           >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete Rule</span>
+            Cancel
           </button>
-          
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg font-montserrat text-sm hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-montserrat text-sm hover:bg-blue-700 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Changes</span>
-            </button>
-          </div>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-deep-navy text-cream rounded-lg font-montserrat text-subtitle font-bold hover:bg-opacity-90 transition-colors flex items-center space-x-2"
+          >
+            <Save className="w-4 h-4" />
+            <span>Save Rule</span>
+          </button>
         </div>
       </div>
     </div>
