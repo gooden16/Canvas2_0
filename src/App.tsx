@@ -1,12 +1,15 @@
+// src/App.tsx
+
 import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { MetricsBar } from './components/MetricsBar';
 import { BuildingPalette } from './components/BuildingPalette';
-import { CanvasWorkspace } from './components/canvas/CanvasWorkspace';
+import { SpatialCanvasWorkspace } from './components/canvas/SpatialCanvasWorkspace';
 import { EditBlockModal } from './components/modals/EditBlockModal';
 import { UserPanel } from './components/UserPanel';
 import { useCanvasData } from './hooks/useCanvasData';
-import { CanvasBlock, CanvasMetric, AutomationRule, BlockConnection } from './types/canvas';
+import { CanvasBlock, CanvasMetric, AutomationRule, BlockConnection, AssetBlock, CreditBlock, UserBlock } from './types/canvas';
+import { Position } from './lib/spatialLayoutEngine';
 
 function App() {
   const { metrics: initialMetrics, blocks: initialBlocks, automationRules: initialRules, connections: initialConnections } = useCanvasData();
@@ -30,57 +33,49 @@ function App() {
 
   const handleSaveBlock = (blockId: string, parameters: any) => {
     setBlocks(prev => prev.map(block => 
-      block.id === blockId ? { ...block, parameters: { ...block.parameters, ...parameters } } : block
+      block.id === blockId 
+        ? { ...block, parameters: { ...block.parameters, ...parameters } }
+        : block
     ));
-    console.log('Saving block parameters:', blockId, parameters);
+    setEditingBlock(null);
   };
 
-  const handleDragStart = (blockType: string) => {
-    setDraggedBlockType(blockType);
-  };
+  const handleDrop = (e: React.DragEvent, position: Position) => {
+    const blockType = e.dataTransfer.getData('text/plain');
+    const blockId = `${blockType}-${Date.now()}`;
 
-  const generateBlockId = (type: string) => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000);
-    return `${type}-${timestamp}-${random}`;
-  };
-
-  const handleDrop = (e: React.DragEvent, position: { x: number; y: number }) => {
-    if (!draggedBlockType) return;
-
-    const blockId = generateBlockId(draggedBlockType);
-    
-    // Create new block based on type
     let newBlock: CanvasBlock;
-    
-    switch (draggedBlockType) {
+
+    switch (blockType) {
       case 'asset-block':
         newBlock = {
           id: blockId,
           type: 'asset',
           subtype: 'operating',
           name: `Asset Block ${blocks.filter(b => b.type === 'asset').length + 1}`,
-          position: { x: Math.max(0, position.x - 160), y: Math.max(0, position.y - 80) },
-          balance: 100000,
-          yieldRate: 2.5,
+          position: { x: Math.max(0, position.x), y: Math.max(0, position.y) },
+          balance: 75000,
+          yieldRate: 0.0425,
+          threshold: 50000,
+          expectedBalance: 100000,
           parameters: {
-            yieldStrategy: 'Base Rate',
-            threshold: 25000,
-            expectedBalance: 150000
+            accountType: 'Operating',
+            currency: 'USD',
+            institution: 'Primary Bank'
           },
           connections: [
-            { id: `${blockId}-in`, type: 'in', label: 'IN' },
-            { id: `${blockId}-out`, type: 'out', label: 'OUT' }
+            { id: `${blockId}-in`, type: 'in', label: 'FUND' },
+            { id: `${blockId}-out`, type: 'out', label: 'TRANSFER' }
           ],
           status: 'active',
           moneyMovement: {
             checkDeposits: true,
             cashDeposits: true,
-            zelleTransfers: false,
+            zelleTransfers: true,
             achOutbound: false,
             wireTransfers: false
           }
-        };
+        } as AssetBlock;
         break;
         
       case 'credit-block':
@@ -89,9 +84,9 @@ function App() {
           type: 'credit',
           subtype: 'line',
           name: `Credit Block ${blocks.filter(b => b.type === 'credit').length + 1}`,
-          position: { x: Math.max(0, position.x - 160), y: Math.max(0, position.y - 80) },
+          position: { x: Math.max(0, position.x), y: Math.max(0, position.y) },
           available: 500000,
-          used: 0,
+          used: 125000,
           rate: 'SOFR+3.00%',
           paymentFrequency: 'monthly',
           parameters: {
@@ -109,32 +104,49 @@ function App() {
             wireTransfers: true,
             creditCard: false,
             checkPayments: false
+          },
+          collateral: {
+            assetType: 'Investment Portfolio',
+            value: 1200000,
+            advanceRate: 0.65,
+            ltv: 0.52,
+            monitoring: true
           }
-        };
+        } as CreditBlock;
         break;
         
       case 'user-block':
-        // Add user to user panel instead of canvas
-        const newUser = {
-          id: `user-${Date.now()}`,
-          name: `New User ${users.length + 1}`,
-          role: 'readonly' as const,
-          avatar: '👤',
-          status: 'offline' as const
-        };
-        setUsers(prev => [...prev, newUser]);
-        setDraggedBlockType('');
-        return;
+        newBlock = {
+          id: blockId,
+          type: 'user',
+          role: 'secondary',
+          name: `User ${blocks.filter(b => b.type === 'user').length + 1}`,
+          position: { x: Math.max(0, position.x), y: Math.max(0, position.y) },
+          permissions: ['view', 'transact'],
+          accessLevel: 'Standard',
+          parameters: {
+            department: 'Finance',
+            approvalLimit: 10000
+          },
+          connections: [
+            { id: `${blockId}-access`, type: 'in', label: 'ACCESS' },
+            { id: `${blockId}-delegate`, type: 'out', label: 'DELEGATE' }
+          ],
+          status: 'active'
+        } as UserBlock;
+        break;
         
       case 'automation-rule':
-        // Add new automation rule
+        // Add new automation rule instead of a block
         const newRule: AutomationRule = {
           id: `rule-${Date.now()}`,
-          name: `Custom Rule ${automationRules.length + 1}`,
-          type: 'custom',
-          trigger: 'Manual trigger',
-          action: 'Custom action',
-          active: false
+          name: `Auto Rule ${automationRules.length + 1}`,
+          type: 'threshold',
+          trigger: 'Balance below threshold',
+          action: 'Transfer from Reserve',
+          active: true,
+          lastRun: new Date().toISOString(),
+          nextCheck: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         };
         setAutomationRules(prev => [...prev, newRule]);
         setDraggedBlockType('');
@@ -144,60 +156,58 @@ function App() {
         // Add new metric to metrics bar
         const newMetric: CanvasMetric = {
           id: `metric-${Date.now()}`,
-          name: 'New Metric',
-          value: '$0',
+          name: `Custom Metric ${metrics.length + 1}`,
+          value: 0,
           format: 'currency',
           trend: 'stable',
-          icon: 'DollarSign'
+          icon: '📊'
         };
         setMetrics(prev => [...prev, newMetric]);
         setDraggedBlockType('');
         return;
         
       default:
+        console.warn('Unknown block type:', blockType);
         setDraggedBlockType('');
         return;
     }
 
-    // Add the new block to canvas
     setBlocks(prev => [...prev, newBlock]);
     setDraggedBlockType('');
-    
-    console.log('Added new block:', newBlock);
   };
 
-  const handleMetricsUpdate = (updatedMetrics: CanvasMetric[]) => {
-    setMetrics(updatedMetrics);
+  const handleAutomationRuleUpdate = (rules: AutomationRule[]) => {
+    setAutomationRules(rules);
   };
 
-  const handleUserUpdate = (updatedUsers: any[]) => {
-    setUsers(updatedUsers);
+  const handleConnectionUpdate = (newConnections: BlockConnection[]) => {
+    setConnections(newConnections);
   };
 
-  const handleAutomationRuleUpdate = (updatedRules: AutomationRule[]) => {
-    setAutomationRules(updatedRules);
-  };
-
-  const handleConnectionUpdate = (updatedConnections: BlockConnection[]) => {
-    setConnections(updatedConnections);
-  };
-
-  const handleBlockUpdate = (updatedBlocks: CanvasBlock[]) => {
-    setBlocks(updatedBlocks);
+  const handleBlockUpdate = (newBlocks: CanvasBlock[]) => {
+    setBlocks(newBlocks);
   };
 
   const editingBlockData = editingBlock ? blocks.find(b => b.id === editingBlock) : null;
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-light-grey">
+      {/* Header */}
       <Header />
-      <MetricsBar metrics={metrics} onMetricsUpdate={handleMetricsUpdate} />
       
-      <div className="flex h-[calc(100vh-120px)] relative">
-        <BuildingPalette onDragStart={handleDragStart} />
+      {/* Metrics Bar */}
+      <MetricsBar metrics={metrics} />
+      
+      {/* Main Content */}
+      <div className="flex h-[calc(100vh-120px)]">
+        {/* Left Sidebar - Building Palette */}
+        <BuildingPalette 
+          onDragStart={setDraggedBlockType}
+        />
         
+        {/* Main Canvas Area */}
         <div className="flex-1 relative">
-          <CanvasWorkspace 
+          <SpatialCanvasWorkspace
             blocks={blocks}
             connections={connections}
             automationRules={automationRules}
@@ -206,22 +216,26 @@ function App() {
             onAutomationRuleUpdate={handleAutomationRuleUpdate}
             onConnectionUpdate={handleConnectionUpdate}
             onBlockUpdate={handleBlockUpdate}
-          />
-          
-          {/* User Panel in top right */}
-          <UserPanel 
-            users={users} 
-            onUserUpdate={handleUserUpdate}
+            draggedBlockType={draggedBlockType}
           />
         </div>
+        
+        {/* Right Sidebar - User Panel */}
+        <UserPanel 
+          users={users}
+          onUserUpdate={(updatedUsers) => setUsers(updatedUsers)}
+        />
       </div>
-
-      <EditBlockModal
-        block={editingBlockData}
-        isOpen={!!editingBlock}
-        onClose={() => setEditingBlock(null)}
-        onSave={handleSaveBlock}
-      />
+      
+      {/* Edit Block Modal */}
+      {editingBlock && editingBlockData && (
+        <EditBlockModal
+          block={editingBlockData}
+          isOpen={!!editingBlock}
+          onClose={() => setEditingBlock(null)}
+          onSave={handleSaveBlock}
+        />
+      )}
     </div>
   );
 }
