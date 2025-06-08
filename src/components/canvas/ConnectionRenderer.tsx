@@ -268,38 +268,44 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
     );
   };
 
-  const renderConnectionLabel = (pathData: string, automationRule?: AutomationRule, pathId: string) => {
+  const renderConnectionLabel = (pathData: string, automationRule?: AutomationRule, pathId: string, from: ConnectionPoint, to: ConnectionPoint) => {
     if (!automationRule || !automationRule.active) return null;
+
+    // Calculate if text should be flipped to avoid upside-down text
+    const deltaX = to.position.x - from.position.x;
+    const isFlipped = deltaX < 0; // Text would be upside down if going right to left
+
+    // Calculate midpoint for positioning
+    const midX = (from.position.x + to.position.x) / 2;
+    const midY = (from.position.y + to.position.y) / 2;
 
     return (
       <g className="connection-label">
-        {/* Background for better readability */}
-        <text>
-          <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
-            <tspan 
-              fill="white" 
-              stroke="white" 
-              strokeWidth="4"
-              fontSize="12"
-              fontFamily="Montserrat"
-              fontWeight="600"
-            >
-              {automationRule.name}
-            </tspan>
-          </textPath>
+        {/* Simple text positioned at midpoint, always right-side up */}
+        <text
+          x={midX}
+          y={midY - 10}
+          textAnchor="middle"
+          fill="white"
+          fontSize="12"
+          fontFamily="Montserrat"
+          fontWeight="600"
+          stroke="white"
+          strokeWidth="3"
+          paintOrder="stroke"
+        >
+          {automationRule.name}
         </text>
-        {/* Actual label text */}
-        <text>
-          <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
-            <tspan 
-              fill="#374151" 
-              fontSize="12"
-              fontFamily="Montserrat"
-              fontWeight="600"
-            >
-              {automationRule.name}
-            </tspan>
-          </textPath>
+        <text
+          x={midX}
+          y={midY - 10}
+          textAnchor="middle"
+          fill="#374151"
+          fontSize="12"
+          fontFamily="Montserrat"
+          fontWeight="600"
+        >
+          {automationRule.name}
         </text>
       </g>
     );
@@ -367,12 +373,12 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
             {renderConnectionPorts(to, style.stroke, `to-${connection.id}`)}
 
             {/* Connection label */}
-            {renderConnectionLabel(pathData, automationRule, pathId)}
+            {renderConnectionLabel(pathData, automationRule, pathId, from, to)}
 
             {/* Flow animation */}
             {renderFlowAnimation(pathData, automationRule)}
 
-            {/* Invisible hover area for interaction */}
+            {/* Invisible hover area for interaction with tooltip */}
             <path
               d={pathData}
               fill="none"
@@ -380,8 +386,21 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
               strokeWidth="16"
               className="connection-hover-area cursor-pointer opacity-0 hover:opacity-20 hover:stroke-blue-300"
               onClick={() => console.log('Connection clicked:', connection)}
-              title={automationRule?.name || 'Connection'}
-            />
+              title={automationRule ? `${automationRule.name}\nType: ${automationRule.type}\nLast run: ${automationRule.lastRun ? new Date(automationRule.lastRun).toLocaleDateString() : 'Never'}\nClick to edit` : 'Connection'}
+            >
+              {/* Enhanced tooltip */}
+              <title>
+                {automationRule ? (
+                  `${automationRule.name}\n` +
+                  `Type: ${automationRule.type}\n` +
+                  `Status: ${automationRule.active ? 'Active' : 'Inactive'}\n` +
+                  `Trigger: ${automationRule.trigger}\n` +
+                  `Action: ${automationRule.action}\n` +
+                  `Last run: ${automationRule.lastRun ? new Date(automationRule.lastRun).toLocaleDateString() : 'Never'}\n` +
+                  `Click to edit or delete`
+                ) : 'Connection - Click to edit'}
+              </title>
+            </path>
           </g>
         );
       })}

@@ -14,6 +14,7 @@ interface SpatialCanvasWorkspaceProps {
   connections: BlockConnection[];
   automationRules: AutomationRule[];
   onBlockEdit: (blockId: string) => void;
+  onBlockDelete: (blockId: string) => void;
   onDrop: (e: React.DragEvent, position: Position) => void;
   onAutomationRuleUpdate: (rules: AutomationRule[]) => void;
   onConnectionUpdate: (connections: BlockConnection[]) => void;
@@ -26,6 +27,7 @@ export const SpatialCanvasWorkspace: React.FC<SpatialCanvasWorkspaceProps> = ({
   connections,
   automationRules,
   onBlockEdit,
+  onBlockDelete,
   onDrop,
   onAutomationRuleUpdate,
   onConnectionUpdate,
@@ -234,6 +236,7 @@ export const SpatialCanvasWorkspace: React.FC<SpatialCanvasWorkspaceProps> = ({
               <AssetBlock
                 block={block}
                 onEdit={() => onBlockEdit(block.id)}
+                onDelete={() => onBlockDelete(block.id)}
                 onConnectionStart={(port) => handleConnectionStart(block.id, port)}
                 onConnectionEnd={(port) => handleConnectionEnd(block.id, port)}
                 isConnecting={isConnecting}
@@ -243,6 +246,7 @@ export const SpatialCanvasWorkspace: React.FC<SpatialCanvasWorkspaceProps> = ({
               <CreditBlock
                 block={block}
                 onEdit={() => onBlockEdit(block.id)}
+                onDelete={() => onBlockDelete(block.id)}
                 onConnectionStart={(port) => handleConnectionStart(block.id, port)}
                 onConnectionEnd={(port) => handleConnectionEnd(block.id, port)}
                 isConnecting={isConnecting}
@@ -252,6 +256,7 @@ export const SpatialCanvasWorkspace: React.FC<SpatialCanvasWorkspaceProps> = ({
               <UserBlock
                 block={block}
                 onEdit={() => onBlockEdit(block.id)}
+                onDelete={() => onBlockDelete(block.id)}
                 onConnectionStart={(port) => handleConnectionStart(block.id, port)}
                 onConnectionEnd={(port) => handleConnectionEnd(block.id, port)}
                 isConnecting={isConnecting}

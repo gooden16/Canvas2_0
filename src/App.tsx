@@ -31,6 +31,20 @@ function App() {
     setEditingBlock(blockId);
   };
 
+  const handleBlockDelete = (blockId: string) => {
+    // Remove the block
+    setBlocks(prev => prev.filter(block => block.id !== blockId));
+    
+    // Remove any connections related to this block
+    setConnections(prev => prev.filter(conn => 
+      conn.fromBlock !== blockId && conn.toBlock !== blockId
+    ));
+  };
+
+  const handleMetricDelete = (metricId: string) => {
+    setMetrics(prev => prev.filter(metric => metric.id !== metricId));
+  };
+
   const handleSaveBlock = (blockId: string, parameters: any) => {
     setBlocks(prev => prev.map(block => 
       block.id === blockId 
@@ -196,7 +210,7 @@ function App() {
       <Header />
       
       {/* Metrics Bar */}
-      <MetricsBar metrics={metrics} />
+      <MetricsBar metrics={metrics} onMetricDelete={handleMetricDelete} />
       
       {/* Main Content */}
       <div className="flex h-[calc(100vh-120px)]">
@@ -212,6 +226,7 @@ function App() {
             connections={connections}
             automationRules={automationRules}
             onBlockEdit={handleBlockEdit}
+            onBlockDelete={handleBlockDelete}
             onDrop={handleDrop}
             onAutomationRuleUpdate={handleAutomationRuleUpdate}
             onConnectionUpdate={handleConnectionUpdate}

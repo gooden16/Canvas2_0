@@ -8,12 +8,14 @@ import {
   Edit3, 
   Circle,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 
 interface AssetBlockProps {
   block: AssetBlockType;
   onEdit: () => void;
+  onDelete: () => void;
   onConnectionStart: (port: string) => void;
   onConnectionEnd: (port: string) => void;
   isConnecting?: boolean;
@@ -22,6 +24,7 @@ interface AssetBlockProps {
 export const AssetBlock: React.FC<AssetBlockProps> = ({
   block,
   onEdit,
+  onDelete,
   onConnectionStart,
   onConnectionEnd,
   isConnecting = false
@@ -114,6 +117,20 @@ export const AssetBlock: React.FC<AssetBlockProps> = ({
             title="Edit parameters"
           >
             <Edit3 className="w-3 h-3" />
+          </button>
+
+          {/* Delete button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm(`Are you sure you want to delete "${block.name}"?`)) {
+                onDelete();
+              }
+            }}
+            className="p-1 text-medium-grey hover:text-red-600 transition-colors"
+            title="Delete block"
+          >
+            <Trash2 className="w-3 h-3" />
           </button>
         </div>
       </div>

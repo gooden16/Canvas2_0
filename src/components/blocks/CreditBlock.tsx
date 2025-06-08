@@ -10,12 +10,14 @@ import {
   Percent,
   Calendar,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 
 interface CreditBlockProps {
   block: CreditBlockType;
   onEdit: () => void;
+  onDelete: () => void;
   onConnectionStart: (port: string) => void;
   onConnectionEnd: (port: string) => void;
   isConnecting?: boolean;
@@ -24,6 +26,7 @@ interface CreditBlockProps {
 export const CreditBlock: React.FC<CreditBlockProps> = ({
   block,
   onEdit,
+  onDelete,
   onConnectionStart,
   onConnectionEnd,
   isConnecting = false
@@ -126,6 +129,20 @@ export const CreditBlock: React.FC<CreditBlockProps> = ({
             title="Edit parameters"
           >
             <Edit3 className="w-3 h-3" />
+          </button>
+
+          {/* Delete button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm(`Are you sure you want to delete "${block.name}"?`)) {
+                onDelete();
+              }
+            }}
+            className="p-1 text-medium-grey hover:text-red-600 transition-colors"
+            title="Delete block"
+          >
+            <Trash2 className="w-3 h-3" />
           </button>
         </div>
       </div>

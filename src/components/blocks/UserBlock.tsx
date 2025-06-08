@@ -11,12 +11,14 @@ import {
   Eye,
   Settings,
   CreditCard,
-  Key
+  Key,
+  Trash2
 } from 'lucide-react';
 
 interface UserBlockProps {
   block: UserBlockType;
   onEdit: () => void;
+  onDelete: () => void;
   onConnectionStart: (port: string) => void;
   onConnectionEnd: (port: string) => void;
   isConnecting?: boolean;
@@ -25,6 +27,7 @@ interface UserBlockProps {
 export const UserBlock: React.FC<UserBlockProps> = ({
   block,
   onEdit,
+  onDelete,
   onConnectionStart,
   onConnectionEnd,
   isConnecting = false
@@ -166,6 +169,20 @@ export const UserBlock: React.FC<UserBlockProps> = ({
             title="Edit permissions"
           >
             <Edit3 className="w-3 h-3" />
+          </button>
+
+          {/* Delete button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm(`Are you sure you want to delete "${block.name}"?`)) {
+                onDelete();
+              }
+            }}
+            className="p-1 text-medium-grey hover:text-red-600 transition-colors"
+            title="Delete user block"
+          >
+            <Trash2 className="w-3 h-3" />
           </button>
         </div>
       </div>
