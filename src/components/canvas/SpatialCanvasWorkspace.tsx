@@ -6,6 +6,7 @@ import { CanvasBlock, BlockConnection, AutomationRule } from '../../types/canvas
 import { AssetBlock } from '../blocks/AssetBlock';
 import { CreditBlock } from '../blocks/CreditBlock';
 import { UserBlock } from '../blocks/UserBlock';
+import { ConnectionRenderer } from './ConnectionRenderer';
 import { Grid3X3, ZoomIn, ZoomOut, Move } from 'lucide-react';
 
 interface SpatialCanvasWorkspaceProps {
@@ -185,59 +186,16 @@ export const SpatialCanvasWorkspace: React.FC<SpatialCanvasWorkspaceProps> = ({
     return block.position;
   };
 
-  // Render connections
+  // Render connections using the ConnectionRenderer component
   const renderConnections = () => {
-    return connections.map(connection => {
-      const fromBlock = blocks.find(b => b.id === connection.fromBlock);
-      const toBlock = blocks.find(b => b.id === connection.toBlock);
-      
-      if (!fromBlock || !toBlock) return null;
-
-      const fromPos = getBlockPosition(fromBlock);
-      const toPos = getBlockPosition(toBlock);
-      
-      // Add offset to connect to block edges
-      const fromConnectorPos = {
-        x: fromPos.x + 100, // Right edge
-        y: fromPos.y + 40   // Middle height
-      };
-      
-      const toConnectorPos = {
-        x: toPos.x,         // Left edge
-        y: toPos.y + 40     // Middle height
-      };
-
-      const pathData = engine.calculateConnectionPath(fromConnectorPos, toConnectorPos, 'curved');
-      
-      const automationRule = automationRules.find(rule => rule.id === connection.automationRule?.id);
-      const isActive = automationRule?.active ?? false;
-
-      return (
-        <g key={connection.id} className="connection-group">
-          <path
-            d={pathData}
-            stroke={isActive ? '#10b981' : '#6b7280'}
-            strokeWidth="2"
-            fill="none"
-            strokeDasharray={isActive ? '0' : '5,5'}
-            className="transition-all duration-300"
-          />
-          {isActive && (
-            <circle
-              r="3"
-              fill="#10b981"
-              className="connection-flow-dot"
-            >
-              <animateMotion
-                dur="3s"
-                repeatCount="indefinite"
-                path={pathData}
-              />
-            </circle>
-          )}
-        </g>
-      );
-    });
+    return (
+      <ConnectionRenderer
+        connections={connections}
+        blocks={blocks}
+        automationRules={automationRules}
+        engine={engine}
+      />
+    );
   };
 
   // Render individual block
