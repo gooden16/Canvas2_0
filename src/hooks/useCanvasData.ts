@@ -1,84 +1,72 @@
-import { useState } from 'react';
-import { CanvasBlock, CanvasMetric, AutomationRule, BlockConnection } from '../types/canvas';
+// src/hooks/useCanvasData.ts
 
-export const useCanvasData = () => {
-  const [metrics] = useState<CanvasMetric[]>([
+import { useState, useEffect } from 'react';
+import { CanvasBlock, CanvasMetric, AutomationRule, BlockConnection, AssetBlock, CreditBlock } from '../types/canvas';
+
+interface CanvasData {
+  metrics: CanvasMetric[];
+  blocks: CanvasBlock[];
+  automationRules: AutomationRule[];
+  connections: BlockConnection[];
+}
+
+export const useCanvasData = (): CanvasData => {
+  // Default sample metrics
+  const defaultMetrics: CanvasMetric[] = [
     {
       id: 'total-liquidity',
-      name: 'Total Liquidity',
-      value: '$3.5M',
+      name: 'Total Available Liquidity',
+      value: 875000,
       format: 'currency',
       trend: 'up',
-      icon: 'DollarSign'
+      icon: '💰'
     },
     {
       id: 'monthly-cashflow',
-      name: 'Net Cash Flow',
-      value: '+$45K/mo',
-      format: 'text',
-      trend: 'up',
-      icon: 'TrendingUp'
+      name: 'Monthly Cash Flow',
+      value: 45000,
+      format: 'currency',
+      trend: 'stable',
+      icon: '📈'
     },
     {
-      id: 'ltv',
-      name: 'LTV',
-      value: '35%',
+      id: 'portfolio-ltv',
+      name: 'Portfolio LTV',
+      value: 0.52,
       format: 'percentage',
-      trend: 'stable',
-      icon: 'BarChart'
+      trend: 'down',
+      icon: '🏦'
     },
     {
-      id: 'alerts',
-      name: 'Alerts',
-      value: '0 Alerts • All Systems ✓',
-      format: 'text',
+      id: 'automation-rules',
+      name: 'Active Rules',
+      value: 3,
+      format: 'number',
       trend: 'stable',
-      icon: 'Shield'
+      icon: '⚡'
     }
-  ]);
+  ];
 
-  const [blocks] = useState<CanvasBlock[]>([
+  // Default sample blocks
+  const defaultBlocks: CanvasBlock[] = [
     {
-      id: 'reserve-asset',
-      type: 'asset',
-      subtype: 'reserve',
-      name: 'Asset Block (Reserve)',
-      position: { x: 50, y: 150 },
-      balance: 1200000,
-      yieldRate: 3.2,
-      parameters: {
-        yieldStrategy: 'Yield Optimized',
-        balanceTarget: 1200000
-      },
-      connections: [
-        { id: 'reserve-out', type: 'out', label: 'OUT' }
-      ],
-      status: 'active',
-      moneyMovement: {
-        checkDeposits: false,
-        cashDeposits: false,
-        zelleTransfers: false,
-        achOutbound: false,
-        wireTransfers: false
-      }
-    },
-    {
-      id: 'operating-asset',
+      id: 'asset-operating-1',
       type: 'asset',
       subtype: 'operating',
-      name: 'Asset Block (Operating)',
-      position: { x: 350, y: 150 },
-      balance: 75000,
+      name: 'Primary Operating Account',
+      position: { x: 140, y: 140 },
+      balance: 125000,
+      yieldRate: 0.045,
       threshold: 50000,
-      expectedBalance: 250000,
+      expectedBalance: 100000,
       parameters: {
-        yieldStrategy: 'Base Rate',
-        threshold: 50000,
-        expectedBalance: 250000
+        accountType: 'Operating',
+        currency: 'USD',
+        institution: 'JPMorgan Chase'
       },
       connections: [
-        { id: 'operating-in', type: 'in', label: 'IN' },
-        { id: 'operating-out', type: 'out', label: 'OUT' }
+        { id: 'asset-operating-1-in', type: 'in', label: 'FUND' },
+        { id: 'asset-operating-1-out', type: 'out', label: 'TRANSFER' }
       ],
       status: 'active',
       moneyMovement: {
@@ -88,16 +76,44 @@ export const useCanvasData = () => {
         achOutbound: false,
         wireTransfers: false
       }
-    },
+    } as AssetBlock,
     {
-      id: 'credit-line',
+      id: 'asset-reserve-1',
+      type: 'asset',
+      subtype: 'reserve',
+      name: 'Reserve Account',
+      position: { x: 380, y: 140 },
+      balance: 250000,
+      yieldRate: 0.042,
+      threshold: 100000,
+      expectedBalance: 200000,
+      parameters: {
+        accountType: 'Reserve',
+        currency: 'USD',
+        institution: 'JPMorgan Chase'
+      },
+      connections: [
+        { id: 'asset-reserve-1-in', type: 'in', label: 'FUND' },
+        { id: 'asset-reserve-1-out', type: 'out', label: 'TRANSFER' }
+      ],
+      status: 'active',
+      moneyMovement: {
+        checkDeposits: false,
+        cashDeposits: false,
+        zelleTransfers: false,
+        achOutbound: true,
+        wireTransfers: true
+      }
+    } as AssetBlock,
+    {
+      id: 'credit-line-1',
       type: 'credit',
       subtype: 'line',
-      name: 'Line of Credit',
-      position: { x: 50, y: 400 },
-      available: 2000000,
-      used: 350000,
-      rate: 'SOFR+2.25%',
+      name: 'Business Line of Credit',
+      position: { x: 140, y: 380 },
+      available: 500000,
+      used: 125000,
+      rate: 'SOFR+3.00%',
       paymentFrequency: 'monthly',
       parameters: {
         rateType: 'Variable',
@@ -105,72 +121,97 @@ export const useCanvasData = () => {
         currency: 'USD'
       },
       connections: [
-        { id: 'credit-fund', type: 'out', label: 'FUND' },
-        { id: 'credit-repay', type: 'in', label: 'REPAY' }
+        { id: 'credit-line-1-fund', type: 'out', label: 'FUND' },
+        { id: 'credit-line-1-repay', type: 'in', label: 'REPAY' }
       ],
       status: 'active',
-      collateral: {
-        assetType: 'Portfolio',
-        value: 5000000,
-        advanceRate: 80,
-        ltv: 35,
-        monitoring: true
-      },
       moneyMovement: {
         achPayments: true,
         wireTransfers: true,
         creditCard: true,
         checkPayments: false
+      },
+      collateral: {
+        assetType: 'Investment Portfolio',
+        value: 1200000,
+        advanceRate: 0.65,
+        ltv: 0.52,
+        monitoring: true
       }
-    }
-  ]);
+    } as CreditBlock
+  ];
 
-  const [automationRules] = useState<AutomationRule[]>([
+  // Default automation rules
+  const defaultAutomationRules: AutomationRule[] = [
     {
-      id: 'auto-replenishment',
-      name: 'Auto-Replenishment Rule',
+      id: 'auto-replenish-1',
+      name: 'Operating Account Replenishment',
       type: 'replenishment',
-      trigger: 'Operating < $50K',
-      action: 'Transfer from Reserve',
+      trigger: 'Balance below $50,000',
+      action: 'Transfer $50,000 from Reserve',
       active: true,
-      lastRun: '3 days ago',
-      nextCheck: 'Real-time'
+      lastRun: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      nextCheck: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     },
     {
-      id: 'monthly-payment',
-      name: 'Monthly Payment Rule',
+      id: 'auto-payment-1',
+      name: 'Credit Line Payment',
       type: 'payment',
-      trigger: 'Monthly (1st business day)',
-      action: 'Pay from Operating to Credit',
+      trigger: 'Monthly payment due',
+      action: 'Pay interest from Operating Account',
       active: true,
-      lastRun: '1 week ago',
-      nextCheck: 'Next month'
-    }
-  ]);
-
-  const [connections] = useState<BlockConnection[]>([
-    {
-      id: 'replenishment-flow',
-      fromBlock: 'reserve-asset',
-      toBlock: 'operating-asset',
-      fromPort: 'reserve-out',
-      toPort: 'operating-in',
-      automationRule: automationRules[0]
+      lastRun: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      nextCheck: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
     },
     {
-      id: 'payment-flow',
-      fromBlock: 'operating-asset',
-      toBlock: 'credit-line',
-      fromPort: 'operating-out',
-      toPort: 'credit-repay',
-      automationRule: automationRules[1]
+      id: 'auto-funding-1',
+      name: 'Credit Card Funding',
+      type: 'custom',
+      trigger: 'Credit card payment needed',
+      action: 'Fund from Line of Credit',
+      active: true,
+      lastRun: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      nextCheck: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     }
-  ]);
+  ];
 
-  return {
-    metrics,
-    blocks,
-    automationRules,
-    connections
-  };
+  // Default connections
+  const defaultConnections: BlockConnection[] = [
+    {
+      id: 'connection-1',
+      fromBlock: 'asset-reserve-1',
+      toBlock: 'asset-operating-1',
+      fromPort: 'asset-reserve-1-out',
+      toPort: 'asset-operating-1-in',
+      automationRule: defaultAutomationRules[0]
+    },
+    {
+      id: 'connection-2',
+      fromBlock: 'asset-operating-1',
+      toBlock: 'credit-line-1',
+      fromPort: 'asset-operating-1-out',
+      toPort: 'credit-line-1-repay',
+      automationRule: defaultAutomationRules[1]
+    }
+  ];
+
+  const [canvasData] = useState<CanvasData>({
+    metrics: defaultMetrics,
+    blocks: defaultBlocks,
+    automationRules: defaultAutomationRules,
+    connections: defaultConnections
+  });
+
+  // In a real application, this would:
+  // 1. Load data from an API or local storage
+  // 2. Handle loading states
+  // 3. Manage data persistence
+  // 4. Handle real-time updates
+  
+  useEffect(() => {
+    // Simulate data loading
+    console.log('Canvas data initialized:', canvasData);
+  }, [canvasData]);
+
+  return canvasData;
 };

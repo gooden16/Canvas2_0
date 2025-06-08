@@ -1,5 +1,7 @@
+// src/components/UserPanel.tsx
+
 import React, { useState } from 'react';
-import { Users, Plus, Edit3, X, Save, UserCheck, UserX, Clock } from 'lucide-react';
+import { Users, Plus, MoreVertical, Edit3, Trash2, Shield, Eye, Key, CreditCard } from 'lucide-react';
 
 interface User {
   id: string;
@@ -15,251 +17,307 @@ interface UserPanelProps {
 }
 
 export const UserPanel: React.FC<UserPanelProps> = ({ users, onUserUpdate }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [editingUser, setEditingUser] = useState<string | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [newUser, setNewUser] = useState({
-    name: '',
-    role: 'readonly' as const,
-    avatar: '👤'
-  });
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<User['role']>('readonly');
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return 'bg-deep-olive';
-      case 'away': return 'bg-gold';
-      case 'offline': return 'bg-medium-grey';
-      default: return 'bg-medium-grey';
-    }
-  };
-
-  const getRoleColor = (role: string) => {
+  const getRoleIcon = (role: User['role']) => {
     switch (role) {
-      case 'primary': return 'bg-deep-navy text-cream';
-      case 'secondary': return 'bg-light-blue text-deep-navy';
-      case 'readonly': return 'bg-light-grey text-charcoal-grey';
-      case 'cardholder': return 'bg-gold text-deep-navy';
-      default: return 'bg-light-grey text-charcoal-grey';
+      case 'primary':
+        return <Key className="w-4 h-4 text-blue-600" />;
+      case 'secondary':
+        return <Shield className="w-4 h-4 text-green-600" />;
+      case 'readonly':
+        return <Eye className="w-4 h-4 text-gray-600" />;
+      case 'cardholder':
+        return <CreditCard className="w-4 h-4 text-purple-600" />;
+      default:
+        return <Users className="w-4 h-4 text-gray-600" />;
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getRoleLabel = (role: User['role']) => {
+    switch (role) {
+      case 'primary':
+        return 'Primary User';
+      case 'secondary':
+        return 'Secondary User';
+      case 'readonly':
+        return 'Read Only';
+      case 'cardholder':
+        return 'Card Holder';
+      default:
+        return 'User';
+    }
+  };
+
+  const getRoleColor = (role: User['role']) => {
+    switch (role) {
+      case 'primary':
+        return 'bg-blue-100 text-blue-800';
+      case 'secondary':
+        return 'bg-green-100 text-green-800';
+      case 'readonly':
+        return 'bg-gray-100 text-gray-800';
+      case 'cardholder':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusColor = (status: User['status']) => {
     switch (status) {
-      case 'online': return UserCheck;
-      case 'away': return Clock;
-      case 'offline': return UserX;
-      default: return UserX;
+      case 'online':
+        return 'bg-green-500';
+      case 'away':
+        return 'bg-yellow-500';
+      case 'offline':
+        return 'bg-gray-400';
+      default:
+        return 'bg-gray-400';
     }
   };
 
-  const addUser = () => {
-    if (!newUser.name.trim()) return;
-    
-    const user: User = {
-      id: `user-${Date.now()}`,
-      name: newUser.name.trim(),
-      role: newUser.role,
-      avatar: newUser.avatar,
-      status: 'offline'
-    };
-    
-    onUserUpdate([...users, user]);
-    setNewUser({ name: '', role: 'readonly', avatar: '👤' });
-    setIsAddingUser(false);
+  const handleAddUser = () => {
+    if (newUserName.trim()) {
+      const newUser: User = {
+        id: `user-${Date.now()}`,
+        name: newUserName,
+        role: newUserRole,
+        avatar: '👤',
+        status: 'offline'
+      };
+      onUserUpdate([...users, newUser]);
+      setNewUserName('');
+      setNewUserRole('readonly');
+      setIsAddingUser(false);
+    }
   };
 
-  const updateUser = (userId: string, updates: Partial<User>) => {
-    onUserUpdate(users.map(user => 
-      user.id === userId ? { ...user, ...updates } : user
-    ));
-    setEditingUser(null);
-  };
-
-  const removeUser = (userId: string) => {
+  const handleDeleteUser = (userId: string) => {
     onUserUpdate(users.filter(user => user.id !== userId));
+    setSelectedUser(null);
   };
 
-  const toggleStatus = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
-    
-    const statusCycle = { online: 'away', away: 'offline', offline: 'online' };
-    const newStatus = statusCycle[user.status as keyof typeof statusCycle] as User['status'];
-    updateUser(userId, { status: newStatus });
+  const handleUpdateUserRole = (userId: string, newRole: User['role']) => {
+    onUserUpdate(users.map(user => 
+      user.id === userId ? { ...user, role: newRole } : user
+    ));
   };
 
   return (
-    <div className="absolute top-4 right-4 z-30">
-      <div className={`bg-white border border-light-medium-grey rounded-xl shadow-card transition-all duration-300 ${
-        isExpanded ? 'w-80' : 'w-auto'
-      }`}>
-        {/* Header */}
-        <div 
-          className="flex items-center justify-between p-3 cursor-pointer hover:bg-light-grey hover:bg-opacity-50 transition-colors rounded-t-xl"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
-            <Users className="w-4 h-4 text-charcoal-grey" />
-            <span className="font-montserrat text-caption font-bold text-charcoal-grey">
-              Users ({users.length})
-            </span>
+            <Users className="w-5 h-5 text-gray-600" />
+            <h2 className="font-montserrat text-lg font-semibold text-gray-800">
+              Users & Access
+            </h2>
           </div>
-          
-          {/* User Avatars Preview */}
-          {!isExpanded && (
-            <div className="flex items-center space-x-1">
-              {users.slice(0, 3).map((user) => (
-                <div key={user.id} className="relative">
-                  <div className="w-6 h-6 rounded-full bg-light-grey flex items-center justify-center text-xs">
-                    {user.avatar}
-                  </div>
-                  <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${getStatusColor(user.status)}`}></div>
-                </div>
-              ))}
-              {users.length > 3 && (
-                <div className="w-6 h-6 rounded-full bg-medium-grey text-white flex items-center justify-center text-xs font-bold">
-                  +{users.length - 3}
-                </div>
-              )}
-            </div>
-          )}
+          <button
+            onClick={() => setIsAddingUser(true)}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Add User"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Expanded Content */}
-        {isExpanded && (
-          <div className="border-t border-light-medium-grey">
-            {/* User List */}
-            <div className="max-h-64 overflow-y-auto">
-              {users.map((user) => {
-                const StatusIcon = getStatusIcon(user.status);
-                const isEditing = editingUser === user.id;
-                
-                return (
-                  <div key={user.id} className="p-3 border-b border-light-grey last:border-b-0 hover:bg-light-grey hover:bg-opacity-30 transition-colors">
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={user.name}
-                          onChange={(e) => updateUser(user.id, { name: e.target.value })}
-                          className="w-full px-2 py-1 text-xs border border-light-medium-grey rounded focus:ring-1 focus:ring-deep-navy"
-                        />
-                        <div className="flex items-center space-x-2">
-                          <select
-                            value={user.role}
-                            onChange={(e) => updateUser(user.id, { role: e.target.value as User['role'] })}
-                            className="flex-1 px-2 py-1 text-xs border border-light-medium-grey rounded focus:ring-1 focus:ring-deep-navy"
-                          >
-                            <option value="primary">Primary</option>
-                            <option value="secondary">Secondary</option>
-                            <option value="readonly">Read Only</option>
-                            <option value="cardholder">Cardholder</option>
-                          </select>
-                          <button
-                            onClick={() => setEditingUser(null)}
-                            className="text-deep-olive hover:text-charcoal-grey transition-colors p-1"
-                          >
-                            <Save className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => removeUser(user.id)}
-                            className="text-burgundy hover:text-charcoal-grey transition-colors p-1"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 flex-1 min-w-0">
-                          <div className="relative flex-shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-light-grey flex items-center justify-center">
-                              {user.avatar}
-                            </div>
-                            <button
-                              onClick={() => toggleStatus(user.id)}
-                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-white ${getStatusColor(user.status)} hover:scale-110 transition-transform cursor-pointer`}
-                            >
-                              <StatusIcon className="w-2 h-2 text-white mx-auto" />
-                            </button>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <p className="font-montserrat text-caption font-bold text-charcoal-grey truncate">
-                              {user.name}
-                            </p>
-                            <div className="flex items-center space-x-1">
-                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${getRoleColor(user.role)}`}>
-                                {user.role.toUpperCase()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <button
-                          onClick={() => setEditingUser(user.id)}
-                          className="text-medium-grey hover:text-charcoal-grey transition-colors p-1 opacity-0 group-hover:opacity-100"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        <div className="text-sm text-gray-500">
+          {users.length} user{users.length !== 1 ? 's' : ''} with access
+        </div>
+      </div>
+
+      {/* Add user form */}
+      {isAddingUser && (
+        <div className="p-4 bg-gray-50 border-b border-gray-200">
+          <div className="space-y-3">
+            <div>
+              <label className="block font-montserrat text-sm font-medium text-gray-700 mb-1">
+                Name
+              </label>
+              <input
+                type="text"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                placeholder="Enter user name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg font-montserrat text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
 
-            {/* Add User Section */}
-            <div className="p-3 border-t border-light-medium-grey bg-light-grey bg-opacity-30">
-              {isAddingUser ? (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="User name..."
-                    className="w-full px-2 py-1 text-xs border border-light-medium-grey rounded focus:ring-1 focus:ring-deep-navy"
-                    autoFocus
-                  />
-                  <div className="flex items-center space-x-2">
-                    <select
-                      value={newUser.role}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as User['role'] }))}
-                      className="flex-1 px-2 py-1 text-xs border border-light-medium-grey rounded focus:ring-1 focus:ring-deep-navy"
-                    >
-                      <option value="readonly">Read Only</option>
-                      <option value="cardholder">Cardholder</option>
-                      <option value="secondary">Secondary</option>
-                      <option value="primary">Primary</option>
-                    </select>
-                    <button
-                      onClick={addUser}
-                      className="bg-deep-navy text-cream px-2 py-1 rounded text-xs font-bold hover:bg-opacity-90 transition-colors"
-                    >
-                      Add
-                    </button>
-                    <button
-                      onClick={() => setIsAddingUser(false)}
-                      className="text-medium-grey hover:text-charcoal-grey transition-colors p-1"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsAddingUser(true)}
-                  className="w-full flex items-center justify-center space-x-2 py-2 border border-dashed border-medium-grey rounded-lg hover:border-charcoal-grey hover:bg-light-grey hover:bg-opacity-50 transition-colors group"
-                >
-                  <Plus className="w-4 h-4 text-medium-grey group-hover:text-charcoal-grey transition-colors" />
-                  <span className="font-montserrat text-caption text-medium-grey group-hover:text-charcoal-grey transition-colors">
-                    Add User
-                  </span>
-                </button>
-              )}
+            <div>
+              <label className="block font-montserrat text-sm font-medium text-gray-700 mb-1">
+                Role
+              </label>
+              <select
+                value={newUserRole}
+                onChange={(e) => setNewUserRole(e.target.value as User['role'])}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg font-montserrat text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="readonly">Read Only</option>
+                <option value="cardholder">Card Holder</option>
+                <option value="secondary">Secondary User</option>
+                <option value="primary">Primary User</option>
+              </select>
+            </div>
+
+            <div className="flex space-x-2">
+              <button
+                onClick={handleAddUser}
+                className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg font-montserrat text-sm hover:bg-blue-700 transition-colors"
+              >
+                Add User
+              </button>
+              <button
+                onClick={() => setIsAddingUser(false)}
+                className="flex-1 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg font-montserrat text-sm hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* User list */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-3">
+          {users.map((user) => (
+            <div
+              key={user.id}
+              className={`
+                p-3 rounded-lg border transition-all duration-200 cursor-pointer
+                ${selectedUser === user.id 
+                  ? 'border-blue-300 bg-blue-50' 
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                }
+              `}
+              onClick={() => setSelectedUser(selectedUser === user.id ? null : user.id)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {/* Avatar with status */}
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-lg">
+                      {user.avatar}
+                    </div>
+                    <div className={`
+                      absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white
+                      ${getStatusColor(user.status)}
+                    `}></div>
+                  </div>
+
+                  {/* User info */}
+                  <div>
+                    <h3 className="font-montserrat text-sm font-semibold text-gray-800">
+                      {user.name}
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      {getRoleIcon(user.role)}
+                      <span className="font-montserrat text-xs text-gray-600">
+                        {getRoleLabel(user.role)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Role badge */}
+                <div className="flex items-center space-x-2">
+                  <span className={`
+                    px-2 py-1 rounded-full font-montserrat text-xs font-medium
+                    ${getRoleColor(user.role)}
+                  `}>
+                    {user.role}
+                  </span>
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedUser(selectedUser === user.id ? null : user.id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded user details */}
+              {selectedUser === user.id && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block font-montserrat text-xs font-medium text-gray-700 mb-1">
+                        Change Role
+                      </label>
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleUpdateUserRole(user.id, e.target.value as User['role'])}
+                        className="w-full px-2 py-1 border border-gray-300 rounded font-montserrat text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="readonly">Read Only</option>
+                        <option value="cardholder">Card Holder</option>
+                        <option value="secondary">Secondary User</option>
+                        <option value="primary">Primary User</option>
+                      </select>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <button className="flex-1 flex items-center justify-center space-x-1 px-2 py-1 bg-gray-100 text-gray-700 rounded font-montserrat text-xs hover:bg-gray-200 transition-colors">
+                        <Edit3 className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                      
+                      {user.role !== 'primary' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUser(user.id);
+                          }}
+                          className="flex-1 flex items-center justify-center space-x-1 px-2 py-1 bg-red-100 text-red-700 rounded font-montserrat text-xs hover:bg-red-200 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer info */}
+      <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="text-xs text-gray-600 space-y-1">
+          <div className="flex items-center justify-between">
+            <span>Access Levels:</span>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <Key className="w-3 h-3 text-blue-600" />
+              <span>Primary: Full control</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Shield className="w-3 h-3 text-green-600" />
+              <span>Secondary: Manage & transact</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CreditCard className="w-3 h-3 text-purple-600" />
+              <span>Cardholder: Spend only</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Eye className="w-3 h-3 text-gray-600" />
+              <span>Read Only: View access</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
