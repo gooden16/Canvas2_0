@@ -7,8 +7,6 @@ import {
   User, 
   Shield, 
   Edit3, 
-  ArrowRight, 
-  ArrowLeft, 
   Circle,
   Eye,
   Settings,
@@ -138,43 +136,6 @@ export const UserBlock: React.FC<UserBlockProps> = ({
       ${getBlockColor()}
       ${isConnecting ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
     `}>
-      {/* Connection Ports */}
-      <div className="absolute -left-2 top-1/2 transform -translate-y-1/2">
-        <button
-          className={`
-            w-4 h-4 rounded-full border-2 bg-white
-            ${isConnecting ? 'border-blue-500 hover:bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
-            transition-colors duration-200
-          `}
-          onClick={() => onConnectionEnd('input')}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            if (!isConnecting) onConnectionStart('input');
-          }}
-          title="Permission input port"
-        >
-          <ArrowLeft className="w-2 h-2 text-gray-500" />
-        </button>
-      </div>
-
-      <div className="absolute -right-2 top-1/2 transform -translate-y-1/2">
-        <button
-          className={`
-            w-4 h-4 rounded-full border-2 bg-white
-            ${isConnecting ? 'border-blue-500 hover:bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
-            transition-colors duration-200
-          `}
-          onClick={() => onConnectionEnd('output')}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            if (!isConnecting) onConnectionStart('output');
-          }}
-          title="Access delegation port"
-        >
-          <ArrowRight className="w-2 h-2 text-gray-500" />
-        </button>
-      </div>
-
       {/* Block Header */}
       <div className="flex items-center justify-between p-3 border-b border-light-grey">
         <div className="flex items-center space-x-2">
