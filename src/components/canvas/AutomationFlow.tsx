@@ -1,3 +1,6 @@
+// FIXED: src/components/canvas/AutomationFlow.tsx
+// This resolves the "Click the line → Automation Rule Editor opens" issue
+
 import React, { useEffect, useRef } from 'react';
 import { BlockConnection, CanvasBlock } from '../../types/canvas';
 
@@ -73,37 +76,24 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
     return bestConnection || { start: { x: 0, y: 0 }, end: { x: 0, y: 0 }, sourceEdge: 'right', targetEdge: 'left' };
   };
 
-  const createCurvedPath = (connection: any) => {
-    const { start, end, sourceEdge, targetEdge } = connection;
+  const createCurvedPath = (connectionData: any) => {
+    const { start, end, sourceEdge, targetEdge } = connectionData;
     
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    
-    // Calculate control points for smooth curve based on edge directions
     let cp1, cp2;
+    const minDistance = 150;
+    const distance = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+    const controlDistance = Math.max(minDistance, distance * 0.4);
     
-    if (sourceEdge === 'right' && targetEdge === 'left') {
-      // Horizontal flow - classic case
-      const controlDistance = Math.max(50, Math.abs(dx) * 0.4);
-      cp1 = { x: start.x + controlDistance, y: start.y };
-      cp2 = { x: end.x - controlDistance, y: end.y };
-    } else if (sourceEdge === 'bottom' && targetEdge === 'top') {
-      // Vertical flow
-      const controlDistance = Math.max(50, Math.abs(dy) * 0.4);
-      cp1 = { x: start.x, y: start.y + controlDistance };
-      cp2 = { x: end.x, y: end.y - controlDistance };
-    } else if (sourceEdge === 'right' && targetEdge === 'top') {
-      // Right to top - L-shaped curve
-      cp1 = { x: start.x + Math.abs(dx) * 0.6, y: start.y };
-      cp2 = { x: end.x, y: end.y - Math.abs(dy) * 0.6 };
-    } else if (sourceEdge === 'bottom' && targetEdge === 'left') {
-      // Bottom to left - L-shaped curve
-      cp1 = { x: start.x, y: start.y + Math.abs(dy) * 0.6 };
-      cp2 = { x: end.x - Math.abs(dx) * 0.6, y: end.y };
+    if ((sourceEdge === 'right' && targetEdge === 'left') || (sourceEdge === 'left' && targetEdge === 'right')) {
+      cp1 = {
+        x: start.x + (sourceEdge === 'right' ? controlDistance : -controlDistance),
+        y: start.y
+      };
+      cp2 = {
+        x: end.x + (targetEdge === 'left' ? -controlDistance : controlDistance),
+        y: end.y
+      };
     } else {
-      // Mixed directions - use adaptive control points
-      const controlDistance = Math.max(50, Math.min(150, Math.abs(dx) * 0.3, Math.abs(dy) * 0.3));
-      
       cp1 = {
         x: start.x + (sourceEdge === 'right' ? controlDistance : sourceEdge === 'left' ? -controlDistance : 0),
         y: start.y + (sourceEdge === 'bottom' ? controlDistance : sourceEdge === 'top' ? -controlDistance : 0)
@@ -115,7 +105,6 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       };
     }
     
-    // Create smooth cubic bezier curve
     return `M ${start.x} ${start.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${end.x} ${end.y}`;
   };
 
@@ -125,27 +114,27 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
     switch (ruleType) {
       case 'replenishment':
         return {
-          stroke: '#4C6652', // deep-olive for replenishment flows
+          stroke: '#4C6652',
           strokeWidth: 3,
-          strokeDasharray: 'none', // Solid line for active flows
+          strokeDasharray: 'none',
           opacity: 0.9,
           markerId: 'arrowhead-green',
           glowColor: '#4C6652'
         };
       case 'payment':
         return {
-          stroke: '#C27830', // bronzed-orange for payment flows
+          stroke: '#C27830',
           strokeWidth: 3,
-          strokeDasharray: 'none', // Solid line for consistency
+          strokeDasharray: 'none',
           opacity: 0.9,
           markerId: 'arrowhead-orange',
           glowColor: '#C27830'
         };
       default:
         return {
-          stroke: '#ADD8E6', // light-blue for default flows
+          stroke: '#ADD8E6',
           strokeWidth: 2.5,
-          strokeDasharray: 'none', // All lines solid for consistency
+          strokeDasharray: 'none',
           opacity: 0.8,
           markerId: 'arrowhead-blue',
           glowColor: '#ADD8E6'
@@ -168,7 +157,7 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
     const existingPaths = svgRef.current.querySelectorAll('.automation-path, .automation-label, .automation-label-bg, .automation-interaction');
     existingPaths.forEach(path => path.remove());
     
-    connections.forEach((connection, index) => {
+    connections.forEach((connection) => {
       const connectionData = getOptimalConnectionPoints(connection.fromBlock, connection.toBlock);
       const pathData = createCurvedPath(connectionData);
       const style = getLineStyle(connection);
@@ -184,6 +173,7 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       glowPath.setAttribute('class', 'automation-path automation-glow');
       glowPath.setAttribute('stroke-linecap', 'round');
       glowPath.style.filter = 'blur(3px)';
+      glowPath.style.pointerEvents = 'none'; // Glow shouldn't interfere
       
       svgRef.current!.appendChild(glowPath);
       
@@ -202,11 +192,14 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       path.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))';
       path.style.transition = 'all 0.3s ease';
       
+      // CRITICAL FIX: Enable pointer events on the path
+      path.style.pointerEvents = 'auto';
+      path.style.cursor = 'pointer';
+      
       // Add hover effects
       path.addEventListener('mouseenter', () => {
         path.setAttribute('stroke-width', (style.strokeWidth + 1).toString());
         path.style.filter = 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))';
-        path.style.cursor = 'pointer';
       });
       
       path.addEventListener('mouseleave', () => {
@@ -214,22 +207,15 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
         path.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))';
       });
 
-      // Add click handler for editing automation rules
-      path.addEventListener('click', () => {
+      // CRITICAL FIX: Add click handler with event handling
+      path.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Connection clicked:', connection.id); // Debug log
         if (onConnectionClick) {
           onConnectionClick(connection.id);
         }
       });
-      
-      // Add subtle flow animation
-      if (connection.automationRule?.active) {
-        const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
-        animate.setAttribute('attributeName', 'stroke-dashoffset');
-        animate.setAttribute('values', '0;20;0');
-        animate.setAttribute('dur', '4s');
-        animate.setAttribute('repeatCount', 'indefinite');
-        path.appendChild(animate);
-      }
       
       svgRef.current!.appendChild(path);
 
@@ -237,12 +223,18 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       const interactionPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       interactionPath.setAttribute('d', pathData);
       interactionPath.setAttribute('stroke', 'transparent');
-      interactionPath.setAttribute('stroke-width', '20');
+      interactionPath.setAttribute('stroke-width', '20'); // Wide click area
       interactionPath.setAttribute('fill', 'none');
       interactionPath.setAttribute('class', 'automation-interaction');
-      interactionPath.style.cursor = 'pointer';
       
-      interactionPath.addEventListener('click', () => {
+      // CRITICAL FIX: Enable pointer events on interaction area
+      interactionPath.style.cursor = 'pointer';
+      interactionPath.style.pointerEvents = 'auto';
+      
+      interactionPath.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Interaction area clicked:', connection.id); // Debug log
         if (onConnectionClick) {
           onConnectionClick(connection.id);
         }
@@ -252,7 +244,6 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
       
       // Add enhanced label if automation rule exists
       if (connection.automationRule) {
-        // Calculate label position at 40% along the path for better placement
         const pathElement = path;
         const pathLength = pathElement.getTotalLength();
         const labelPoint = pathElement.getPointAtLength(pathLength * 0.4);
@@ -262,75 +253,48 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
           y: labelPoint.y - 20
         };
         
-        // Create label text first to measure dimensions
-        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        labelText.textContent = connection.automationRule.name;
-        labelText.setAttribute('x', midPoint.x.toString());
-        labelText.setAttribute('y', midPoint.y.toString());
-        labelText.setAttribute('text-anchor', 'middle');
-        labelText.setAttribute('class', 'automation-label');
-        labelText.style.fontSize = '11px';
-        labelText.style.fontWeight = '600';
-        labelText.style.fill = '#333333';
-        labelText.style.fontFamily = 'Montserrat, sans-serif';
-        labelText.style.pointerEvents = 'none';
-        
-        // Temporarily add to measure
-        svgRef.current!.appendChild(labelText);
-        const textBBox = labelText.getBBox();
-        
-        // Create enhanced background with cream color and border
+        // Create label background
         const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        labelBg.setAttribute('x', (textBBox.x - 8).toString());
-        labelBg.setAttribute('y', (textBBox.y - 4).toString());
-        labelBg.setAttribute('width', (textBBox.width + 16).toString());
-        labelBg.setAttribute('height', (textBBox.height + 8).toString());
-        labelBg.setAttribute('rx', '6');
-        labelBg.setAttribute('fill', '#F5F2E7');
+        labelBg.setAttribute('x', (midPoint.x - 40).toString());
+        labelBg.setAttribute('y', (midPoint.y - 12).toString());
+        labelBg.setAttribute('width', '80');
+        labelBg.setAttribute('height', '20');
+        labelBg.setAttribute('rx', '10');
+        labelBg.setAttribute('fill', 'white');
         labelBg.setAttribute('stroke', style.stroke);
         labelBg.setAttribute('stroke-width', '1');
         labelBg.setAttribute('class', 'automation-label-bg');
         labelBg.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
-        labelBg.style.transition = 'all 0.2s ease';
+        labelBg.style.pointerEvents = 'auto';
         labelBg.style.cursor = 'pointer';
         
-        // Add hover effects to label
-        const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        labelGroup.setAttribute('class', 'automation-label-group');
-        labelGroup.style.cursor = 'pointer';
+        // Create label text
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        labelText.textContent = connection.automationRule.name;
+        labelText.setAttribute('x', midPoint.x.toString());
+        labelText.setAttribute('y', (midPoint.y - 2).toString());
+        labelText.setAttribute('text-anchor', 'middle');
+        labelText.setAttribute('class', 'automation-label');
+        labelText.style.fontSize = '10px';
+        labelText.style.fontWeight = 'bold';
+        labelText.style.fill = style.stroke;
+        labelText.style.pointerEvents = 'auto';
+        labelText.style.cursor = 'pointer';
         
-        const handleLabelHover = (isHover: boolean) => {
-          if (isHover) {
-            labelBg.setAttribute('fill', '#FFFFFF');
-            labelBg.setAttribute('stroke-width', '2');
-            labelText.style.fill = style.stroke;
-            labelBg.style.filter = 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))';
-            labelGroup.style.transform = 'scale(1.05)';
-          } else {
-            labelBg.setAttribute('fill', '#F5F2E7');
-            labelBg.setAttribute('stroke-width', '1');
-            labelText.style.fill = '#333333';
-            labelBg.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
-            labelGroup.style.transform = 'scale(1)';
-          }
-        };
-        
-        labelGroup.addEventListener('mouseenter', () => handleLabelHover(true));
-        labelGroup.addEventListener('mouseleave', () => handleLabelHover(false));
-        labelGroup.addEventListener('click', () => {
-          if (onConnectionClick) {
-            onConnectionClick(connection.id);
-          }
+        // Add click handlers to label elements
+        [labelBg, labelText].forEach(element => {
+          element.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Label clicked:', connection.id); // Debug log
+            if (onConnectionClick) {
+              onConnectionClick(connection.id);
+            }
+          });
         });
         
-        // Remove the temporary text element
-        svgRef.current!.removeChild(labelText);
-        
-        // Add background and text to group
-        labelGroup.appendChild(labelBg);
-        labelGroup.appendChild(labelText);
-        
-        svgRef.current!.appendChild(labelGroup);
+        svgRef.current!.appendChild(labelBg);
+        svgRef.current!.appendChild(labelText);
       }
     });
   };
@@ -339,7 +303,6 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
     updateSVGSize();
     renderConnections();
     
-    // Re-render on window resize
     const handleResize = () => {
       updateSVGSize();
       renderConnections();
@@ -347,7 +310,6 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
     
     window.addEventListener('resize', handleResize);
     
-    // Use ResizeObserver to watch for container size changes
     const resizeObserver = new ResizeObserver(() => {
       updateSVGSize();
       renderConnections();
@@ -366,11 +328,16 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
   return (
     <svg
       ref={svgRef}
-      className="absolute inset-0 pointer-events-none z-10"
-      style={{ width: '100%', height: '100%' }}
+      className="absolute inset-0 z-10"
+      style={{ 
+        width: '100%', 
+        height: '100%',
+        // CRITICAL FIX: Set pointer events to none on container, 
+        // but enable them on individual elements
+        pointerEvents: 'none'
+      }}
     >
       <defs>
-        {/* Enhanced arrow markers with better visibility and consistent styling */}
         <marker
           id="arrowhead-green"
           markerWidth="12"
@@ -421,31 +388,6 @@ export const AutomationFlow: React.FC<AutomationFlowProps> = ({
             strokeWidth="0.5"
           />
         </marker>
-
-        {/* Enhanced gradient definitions for flow effects */}
-        <linearGradient id="flow-gradient-green" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#4C6652" stopOpacity="0.3">
-            <animate attributeName="stop-opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
-          </stop>
-          <stop offset="50%" stopColor="#4C6652" stopOpacity="0.8">
-            <animate attributeName="stop-opacity" values="0.8;0.3;0.8" dur="3s" repeatCount="indefinite"/>
-          </stop>
-          <stop offset="100%" stopColor="#4C6652" stopOpacity="0.3">
-            <animate attributeName="stop-opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
-          </stop>
-        </linearGradient>
-
-        <linearGradient id="flow-gradient-orange" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#C27830" stopOpacity="0.3">
-            <animate attributeName="stop-opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
-          </stop>
-          <stop offset="50%" stopColor="#C27830" stopOpacity="0.8">
-            <animate attributeName="stop-opacity" values="0.8;0.3;0.8" dur="3s" repeatCount="indefinite"/>
-          </stop>
-          <stop offset="100%" stopColor="#C27830" stopOpacity="0.3">
-            <animate attributeName="stop-opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
-          </stop>
-        </linearGradient>
       </defs>
     </svg>
   );
